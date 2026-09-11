@@ -3,522 +3,636 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Addictive Number Game</title>
+    <title>Lucky Number Arena</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #6e48aa;
-            --secondary: #9d50bb;
-            --win: #4CAF50;
-            --lose: #f44336;
-            --highlight: #FFD700;
+            --bg: #070913;
+            --surface: rgba(18, 22, 40, 0.75);
+            --surface-subtle: rgba(255, 255, 255, 0.04);
+            --border: rgba(255, 255, 255, 0.1);
+            --border-hover: rgba(255, 255, 255, 0.22);
+            --accent: #8b5cf6;
+            --accent-glow: rgba(139, 92, 246, 0.4);
+            --gold: #fbbf24;
+            --win: #10b981;
+            --lose: #f43f5e;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
         }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            color: white;
-            height: 100vh;
+
+        * {
+            box-sizing: border-box;
             margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at 50% 10%, #1e153b 0%, #0c0d1d 55%, var(--bg) 100%);
+            color: var(--text);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
+            padding: 20px;
+            overflow-x: hidden;
         }
-        
-        .game-container {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
-            width: 350px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            position: relative;
-            overflow: hidden;
+
+        /* Ambient Glow & Canvas */
+        .ambient-glow {
+            position: fixed;
+            width: 480px;
+            height: 480px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, rgba(0,0,0,0) 70%);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(50px);
+            opacity: 0.6;
         }
-        
-        .particles {
-            position: absolute;
+
+        canvas#confetti-canvas {
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             pointer-events: none;
-            z-index: -1;
+            z-index: 99;
         }
-        
-        h1 {
+
+        /* Game Card Container */
+        .game-card {
+            position: relative;
+            z-index: 1;
+            background: var(--surface);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            width: 100%;
+            max-width: 420px;
+            padding: 28px 24px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6),
+                        inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            transition: border-color 0.3s ease;
+        }
+
+        /* Header & Stats */
+        .header {
             text-align: center;
-            margin-bottom: 25px;
-            font-weight: 700;
-            background: linear-gradient(to right, #ff8a00, #da1b60);
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #fff 30%, #a78bfa 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        
-        .stats {
+
+        .stats-bar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-badge {
+            background: var(--surface-subtle);
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .stat-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .stat-val {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .stat-val.gold {
+            color: var(--gold);
+        }
+
+        /* Number Selector Strip */
+        .section-label {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
-            font-size: 1.1rem;
-        }
-        
-        .balance {
-            color: var(--highlight);
-            font-weight: bold;
-        }
-        
-        .streak {
-            background: rgba(255, 215, 0, 0.2);
-            padding: 3px 10px;
-            border-radius: 20px;
-        }
-        
-        .input-group {
-            margin: 20px 0;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
-        
-        input, select {
-            width: 100%;
-            padding: 12px 15px;
-            border-radius: 10px;
-            border: none;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            font-size: 1rem;
-            margin-bottom: 15px;
-        }
-        
-        input:focus {
-            outline: 2px solid var(--secondary);
-        }
-        
-        button {
-            width: 100%;
-            padding: 15px;
-            border: none;
-            border-radius: 10px;
-            background: linear-gradient(to right, var(--primary), var(--secondary));
-            color: white;
-            font-weight: bold;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-top: 10px;
-        }
-        
-        button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(110, 72, 170, 0.4);
-        }
-        
-        button:active {
-            transform: translateY(0);
-        }
-        
-        .result-container {
-            margin-top: 25px;
-            min-height: 100px;
-            position: relative;
-        }
-        
-        .countdown {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
             align-items: center;
-            font-size: 5rem;
-            font-weight: bold;
-            color: var(--highlight);
-            animation: pulse 1s infinite;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.2); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
+
+        .number-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
         }
-        
-        .result-number {
-            font-size: 6rem;
-            text-align: center;
-            font-weight: bold;
-            margin: 20px 0;
-            animation: reveal 0.5s ease-out;
+
+        .num-btn {
+            background: var(--surface-subtle);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 1.15rem;
+            height: 48px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        
-        @keyframes reveal {
-            0% { transform: scale(0); opacity: 0; }
-            80% { transform: scale(1.1); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
+
+        .num-btn:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.08);
         }
-        
-        .result-message {
-            text-align: center;
+
+        .num-btn.selected {
+            background: var(--accent);
+            border-color: #a78bfa;
+            color: #fff;
+            box-shadow: 0 0 16px var(--accent-glow);
+            transform: scale(1.04);
+        }
+
+        /* Bet Controls */
+        .bet-box {
+            background: var(--surface-subtle);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 12px 14px;
+            margin-bottom: 20px;
+        }
+
+        .bet-input-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .currency-symbol {
+            color: var(--gold);
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 1.25rem;
+        }
+
+        .bet-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #fff;
+            font-family: 'Space Grotesk', sans-serif;
             font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .bet-chips {
+            display: flex;
+            gap: 6px;
             margin-top: 10px;
-            font-weight: bold;
         }
-        
-        .win {
-            color: var(--win);
+
+        .bet-chip {
+            flex: 1;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
         }
-        
-        .lose {
-            color: var(--lose);
+
+        .bet-chip:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
         }
-        
-        .confetti {
-            position: absolute;
+
+        /* Action Button */
+        .btn-play {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea);
+            border: none;
+            border-radius: 18px;
+            color: #fff;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.5);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-play:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 30px -5px rgba(124, 58, 237, 0.65);
+        }
+
+        .btn-play:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Visual Reveal Box */
+        .slot-display {
+            height: 90px;
+            margin-top: 20px;
+            border-radius: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px dashed var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slot-number {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.75rem;
+            font-weight: 800;
+            color: #fff;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .slot-message {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .text-win { color: var(--win); }
+        .text-lose { color: var(--lose); }
+
+        /* History Indicators */
+        .history-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .history-dot {
             width: 10px;
             height: 10px;
-            background-color: var(--highlight);
-            opacity: 0;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            transition: transform 0.2s ease;
         }
-        
-        .bonus-offer {
-            background: rgba(255, 215, 0, 0.2);
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
+
+        .history-dot.win {
+            background: var(--win);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
+
+        .history-dot.lose {
+            background: var(--lose);
+            box-shadow: 0 0 8px rgba(244, 63, 94, 0.5);
+        }
+
+        /* Bonus Modal Card */
+        .bonus-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(7, 9, 19, 0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
             text-align: center;
-            animation: glow 2s infinite alternate;
-            border: 1px solid var(--highlight);
+            z-index: 10;
+            animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        
-        @keyframes glow {
-            from { box-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
-            to { box-shadow: 0 0 20px rgba(255, 215, 0, 0.8); }
+
+        .bonus-badge {
+            background: rgba(251, 191, 36, 0.15);
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 20px;
+            margin-bottom: 12px;
+            letter-spacing: 0.05em;
         }
-        
-        .bonus-buttons {
+
+        .bonus-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .bonus-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .bonus-actions {
             display: flex;
             gap: 10px;
-            margin-top: 10px;
+            width: 100%;
         }
-        
-        .bonus-buttons button {
+
+        .btn-ghost {
+            background: var(--surface-subtle);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
             flex: 1;
-            padding: 10px;
         }
-        
-        .history {
-            display: flex;
-            gap: 5px;
-            margin-top: 20px;
-            justify-content: center;
+
+        .btn-gold {
+            background: var(--gold);
+            border: none;
+            color: #000;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            flex: 1;
         }
-        
-        .history-item {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
         }
-        
-        .win-history {
-            background-color: var(--win);
-        }
-        
-        .lose-history {
-            background-color: var(--lose);
-        }
-        
-        /* Animation classes */
+
         .shake {
-            animation: shake 0.5s;
+            animation: shake 0.4s ease;
         }
-        
+
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-            20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-        
-        .jump {
-            animation: jump 0.5s;
-        }
-        
-        @keyframes jump {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
         }
     </style>
 </head>
 <body>
-    <div class="particles" id="particles"></div>
-    
-    <div class="game-container">
-        <h1>LUCKY NUMBER</h1>
-        
-        <div class="stats">
-            <div class="balance">₹<span id="balance">100</span></div>
-            <div class="streak">🔥 <span id="streak">0</span></div>
+    <div class="ambient-glow"></div>
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="game-card" id="game-card">
+        <div class="header">
+            <h1 class="title">Lucky Number</h1>
         </div>
-        
-        <div class="input-group">
-            <label for="bet">Your Bet</label>
-            <input type="number" id="bet" min="1" value="10">
-            
-            <label for="guess">Pick a Number (0-9)</label>
-            <input type="number" id="guess" min="0" max="9" value="0">
-            
-            <button id="play-btn">SPIN & WIN</button>
+
+        <div class="stats-bar">
+            <div class="stat-badge">
+                <span class="stat-label">Balance</span>
+                <span class="stat-val gold">₹<span id="balance">100.00</span></span>
+            </div>
+            <div class="stat-badge">
+                <span class="stat-label">Win Streak</span>
+                <span class="stat-val">🔥 <span id="streak">0</span></span>
+            </div>
         </div>
-        
-        <div class="result-container" id="result-container">
-            <!-- Results will appear here -->
+
+        <div class="section-label">
+            <span>Select Lucky Number</span>
+            <span id="selected-preview" style="color: var(--accent); font-weight:700;">#0</span>
         </div>
-        
-        <div class="history" id="history">
-            <!-- Win/lose history dots -->
+        <div class="number-grid" id="number-grid">
+            <!-- Rendered by JS -->
         </div>
-        
-        <div class="bonus-offer" id="bonus-offer" style="display: none;">
-            <p>SPECIAL BONUS ROUND!</p>
-            <p>Double your next bet?</p>
-            <div class="bonus-buttons">
-                <button id="double-btn">DOUBLE</button>
-                <button id="continue-btn">CONTINUE</button>
+
+        <div class="bet-box">
+            <span class="stat-label">Wager Amount</span>
+            <div class="bet-input-row">
+                <span class="currency-symbol">₹</span>
+                <input type="number" id="bet" class="bet-input" min="1" value="10" step="5">
+            </div>
+            <div class="bet-chips">
+                <button class="bet-chip" onclick="adjustBet(0.5)">½</button>
+                <button class="bet-chip" onclick="adjustBet(2)">2×</button>
+                <button class="bet-chip" onclick="setQuickBet(25)">+25</button>
+                <button class="bet-chip" onclick="setBetMax()">MAX</button>
+            </div>
+        </div>
+
+        <button class="btn-play" id="play-btn">LOCK & SPIN</button>
+
+        <div class="slot-display" id="slot-display">
+            <div class="slot-number" id="slot-number">-</div>
+            <div class="slot-message" id="slot-message">Ready to Roll</div>
+        </div>
+
+        <div class="history-row" id="history"></div>
+
+        <!-- Bonus Overlay Modal -->
+        <div class="bonus-overlay" id="bonus-offer" style="display: none;">
+            <div class="bonus-badge">HOT STREAK!</div>
+            <div class="bonus-title">Double Or Nothing?</div>
+            <div class="bonus-desc">You're on a roll! Double your bet instantly for the next roll?</div>
+            <div class="bonus-actions">
+                <button class="btn-ghost" id="continue-btn">Keep Current</button>
+                <button class="btn-gold" id="double-btn">Double Bet</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Game state
-        let balance = 100;
+        // State
+        let balance = 100.00;
         let streak = 0;
-        let currentBet = 10;
+        let selectedNumber = 0;
         let gameHistory = [];
-        
-        // DOM elements
+
+        // DOM Elements
         const balanceEl = document.getElementById('balance');
         const streakEl = document.getElementById('streak');
         const betInput = document.getElementById('bet');
-        const guessInput = document.getElementById('guess');
         const playBtn = document.getElementById('play-btn');
-        const resultContainer = document.getElementById('result-container');
+        const slotNumber = document.getElementById('slot-number');
+        const slotMessage = document.getElementById('slot-message');
+        const slotDisplay = document.getElementById('slot-display');
         const historyEl = document.getElementById('history');
         const bonusOffer = document.getElementById('bonus-offer');
         const doubleBtn = document.getElementById('double-btn');
         const continueBtn = document.getElementById('continue-btn');
-        
-        // Initialize
-        updateUI();
-        createParticles();
-        
-        // Event listeners
-        playBtn.addEventListener('click', playGame);
-        doubleBtn.addEventListener('click', doubleBet);
-        continueBtn.addEventListener('click', continueGame);
-        
-        // Main game function
-        function playGame() {
-            const bet = parseInt(betInput.value);
-            const userGuess = parseInt(guessInput.value);
-            
-            // Validate
+        const numberGrid = document.getElementById('number-grid');
+        const selectedPreview = document.getElementById('selected-preview');
+        const gameCard = document.getElementById('game-card');
+
+        // Build Number Selector Grid (0-9)
+        function initGrid() {
+            numberGrid.innerHTML = '';
+            for (let i = 0; i <= 9; i++) {
+                const btn = document.createElement('button');
+                btn.className = `num-btn ${i === selectedNumber ? 'selected' : ''}`;
+                btn.textContent = i;
+                btn.onclick = () => {
+                    selectedNumber = i;
+                    selectedPreview.textContent = `#${i}`;
+                    document.querySelectorAll('.num-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                };
+                numberGrid.appendChild(btn);
+            }
+        }
+
+        // Quick Bet Helpers
+        function adjustBet(factor) {
+            let current = parseFloat(betInput.value) || 0;
+            betInput.value = Math.max(1, Math.floor(current * factor));
+        }
+
+        function setQuickBet(val) {
+            let current = parseFloat(betInput.value) || 0;
+            betInput.value = current + val;
+        }
+
+        function setBetMax() {
+            betInput.value = Math.floor(balance);
+        }
+
+        // Play Game Logic
+        playBtn.addEventListener('click', () => {
+            const bet = parseFloat(betInput.value);
+
+            if (isNaN(bet) || bet <= 0) {
+                shakeElement(betInput);
+                return;
+            }
+
             if (bet > balance) {
-                showMessage("Not enough balance!", true);
-                playBtn.classList.add('shake');
-                setTimeout(() => playBtn.classList.remove('shake'), 500);
+                shakeElement(gameCard);
+                slotMessage.textContent = "Insufficient Balance";
+                slotMessage.className = "slot-message text-lose";
                 return;
             }
-            
-            if (userGuess < 0 || userGuess > 9) {
-                showMessage("Pick 0-9!", true);
-                guessInput.classList.add('shake');
-                setTimeout(() => guessInput.classList.remove('shake'), 500);
-                return;
-            }
-            
-            // Disable button during animation
+
             playBtn.disabled = true;
-            
-            // Show countdown
-            showCountdown(() => {
-                // Generate random number
-                const computerNumber = Math.floor(Math.random() * 10);
-                
-                // Check result
-                const isWin = userGuess === computerNumber;
-                
-                // Update balance
-                if (isWin) {
-                    const winAmount = bet * 1.05;
-                    balance += winAmount;
-                    streak++;
-                    
-                    // Show win animation
-                    showResult(computerNumber, true);
-                    showMessage(`YOU WON ₹${winAmount.toFixed(2)}!`, false);
-                    createConfetti();
-                    
-                    // Check for bonus round
-                    if (streak >= 2) {
-                        setTimeout(() => {
-                            bonusOffer.style.display = 'block';
-                        }, 1500);
-                    }
-                } else {
-                    balance -= bet;
-                    streak = 0;
-                    
-                    // Show lose animation
-                    showResult(computerNumber, false);
-                    showMessage(`You lost ₹${bet}`, true);
+            slotMessage.textContent = "Rolling...";
+            slotMessage.className = "slot-message";
+
+            // Rolling Slot Animation
+            let rollInterval;
+            let counter = 0;
+            rollInterval = setInterval(() => {
+                slotNumber.textContent = Math.floor(Math.random() * 10);
+                counter++;
+                if (counter > 15) {
+                    clearInterval(rollInterval);
+                    finalizeRound(bet);
                 }
-                
-                // Update history
-                gameHistory.push(isWin);
-                updateHistory();
-                
-                // Update UI
-                updateUI();
-                
-                // Re-enable button
-                playBtn.disabled = false;
-            });
-        }
-        
-        // Show countdown before revealing number
-        function showCountdown(callback) {
-            resultContainer.innerHTML = '';
-            const countdownEl = document.createElement('div');
-            countdownEl.className = 'countdown';
-            resultContainer.appendChild(countdownEl);
-            
-            let count = 3;
-            countdownEl.textContent = count;
-            
-            const timer = setInterval(() => {
-                count--;
-                if (count > 0) {
-                    countdownEl.textContent = count;
-                    countdownEl.classList.add('jump');
-                    setTimeout(() => countdownEl.classList.remove('jump'), 300);
-                } else {
-                    clearInterval(timer);
-                    resultContainer.removeChild(countdownEl);
-                    callback();
+            }, 60);
+        });
+
+        function finalizeRound(bet) {
+            const rolled = Math.floor(Math.random() * 10);
+            slotNumber.textContent = rolled;
+
+            const isWin = selectedNumber === rolled;
+
+            if (isWin) {
+                const payout = bet * 9; // Authentic 1-in-10 odds payout
+                balance += payout;
+                streak++;
+                slotMessage.textContent = `Won +₹${payout.toFixed(2)}`;
+                slotMessage.className = "slot-message text-win";
+                slotDisplay.style.borderColor = "var(--win)";
+                triggerConfetti();
+
+                if (streak >= 2) {
+                    setTimeout(() => { bonusOffer.style.display = 'flex'; }, 800);
                 }
-            }, 800);
+            } else {
+                balance -= bet;
+                streak = 0;
+                slotMessage.textContent = `Lost -₹${bet.toFixed(2)}`;
+                slotMessage.className = "slot-message text-lose";
+                slotDisplay.style.borderColor = "var(--lose)";
+            }
+
+            gameHistory.push(isWin);
+            updateStats();
+            updateHistoryUI();
+            playBtn.disabled = false;
         }
-        
-        // Show the result number with animation
-        function showResult(number, isWin) {
-            const numberEl = document.createElement('div');
-            numberEl.className = `result-number ${isWin ? 'win' : 'lose'}`;
-            numberEl.textContent = number;
-            resultContainer.appendChild(numberEl);
-        }
-        
-        // Show win/lose message
-        function showMessage(message, isError) {
-            const messageEl = document.createElement('div');
-            messageEl.className = `result-message ${isError ? 'lose' : 'win'}`;
-            messageEl.textContent = message;
-            resultContainer.appendChild(messageEl);
-        }
-        
-        // Update UI elements
-        function updateUI() {
+
+        function updateStats() {
             balanceEl.textContent = balance.toFixed(2);
             streakEl.textContent = streak;
-            betInput.value = currentBet;
         }
-        
-        // Update win/lose history dots
-        function updateHistory() {
+
+        function updateHistoryUI() {
             historyEl.innerHTML = '';
-            gameHistory.slice(-10).forEach(result => {
+            gameHistory.slice(-8).forEach(win => {
                 const dot = document.createElement('div');
-                dot.className = `history-item ${result ? 'win-history' : 'lose-history'}`;
+                dot.className = `history-dot ${win ? 'win' : 'lose'}`;
                 historyEl.appendChild(dot);
             });
         }
-        
-        // Bonus round functions
-        function doubleBet() {
-            currentBet *= 2;
+
+        function shakeElement(el) {
+            el.classList.add('shake');
+            setTimeout(() => el.classList.remove('shake'), 400);
+        }
+
+        // Bonus Offer Logic
+        doubleBtn.onclick = () => {
+            const current = parseFloat(betInput.value) || 0;
+            betInput.value = current * 2;
             bonusOffer.style.display = 'none';
-            updateUI();
-        }
-        
-        function continueGame() {
+        };
+
+        continueBtn.onclick = () => {
             bonusOffer.style.display = 'none';
-        }
-        
-        // Create confetti effect
-        function createConfetti() {
-            const container = document.querySelector('.game-container');
-            
-            for (let i = 0; i < 50; i++) {
-                const confetti = document.createElement('div');
-                confetti.className = 'confetti';
-                confetti.style.left = Math.random() * 100 + '%';
-                confetti.style.top = -10 + 'px';
-                confetti.style.backgroundColor = getRandomColor();
-                container.appendChild(confetti);
-                
-                // Animate
-                const animation = confetti.animate([
-                    { top: '-10px', opacity: 1, transform: 'rotate(0deg)' },
-                    { top: '100%', opacity: 0, transform: 'rotate(360deg)' }
-                ], {
-                    duration: 2000 + Math.random() * 3000,
-                    easing: 'cubic-bezier(0.1, 0.8, 0.9, 1)'
-                });
-                
-                animation.onfinish = () => {
-                    confetti.remove();
-                };
-            }
-        }
-        
-        function getRandomColor() {
-            const colors = ['#FFD700', '#FF1493', '#00BFFF', '#7CFC00', '#FF4500'];
-            return colors[Math.floor(Math.random() * colors.length)];
-        }
-        
-        // Create background particles
-        function createParticles() {
-            const container = document.getElementById('particles');
-            
-            for (let i = 0; i < 30; i++) {
-                const particle = document.createElement('div');
-                particle.style.position = 'absolute';
-                particle.style.width = Math.random() * 5 + 2 + 'px';
-                particle.style.height = particle.style.width;
-                particle.style.backgroundColor = 'rgba(255, 255, 255, ' + (Math.random() * 0.5 + 0.1) + ')';
-                particle.style.borderRadius = '50%';
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.top = Math.random() * 100 + '%';
-                
-                // Animation
-                const duration = Math.random() * 20 + 10;
-                particle.animate([
-                    { transform: 'translateY(0)' },
-                    { transform: 'translateY(' + (Math.random() > 0.5 ? '-' : '') + (Math.random() * 100 + 50) + 'px)' }
-                ], {
-                    duration: duration * 1000,
-                    iterations: Infinity,
-                    direction: Math.random() > 0.5 ? 'alternate' : 'normal'
-                });
-                
-                container.appendChild(particle);
-            }
-        }
-    </script>
-</body>
-</html>
+        };
+
+        // Canvas Confetti
+        const canvas = document.getElementById('confetti-canvas')
